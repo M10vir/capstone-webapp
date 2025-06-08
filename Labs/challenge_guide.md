@@ -32,15 +32,6 @@ In this challenge, you will create a Multi-Agent System that accepts a user’s 
 
         >- **Hint:** API version can be fetched from the Target URI.
 
-1. Update the `.env` file with the Azure AI Foundry deployment details:
-
-    ```
-    AZURE_OPENAI_CHAT_DEPLOYMENT_NAME=Replace with your deployment name
-    AZURE_OPENAI_ENDPOINT=Replace with your endpoint URL
-    AZURE_OPENAI_API_KEY=Replace with your API key
-    AZURE_OPENAI_API_VERSION=Replace with your API version
-    ```
-
 > **Congratulations** on completing the task! Now, it's time to validate it. Here are the steps:
 > - If you receive a success message, you can proceed to the next task.
 > - If not, carefully read the error message and retry the step, following the instructions in the lab guide. 
@@ -51,6 +42,15 @@ In this challenge, you will create a Multi-Agent System that accepts a user’s 
 ## Task 2 - Configure Multi-Agent Workflow and Automate Code Push on Approval
 
 1. Open **VS Code** on your Lab VM. Then, open the **CAPSTONE-PROJECT** folder in VS Code from the path `C:\LabFiles\`
+
+1. Update the `.env` file with the Azure AI Foundry deployment details:
+
+    ```
+    AZURE_OPENAI_CHAT_DEPLOYMENT_NAME=Replace with your deployment name
+    AZURE_OPENAI_ENDPOINT=Replace with your endpoint URL
+    AZURE_OPENAI_API_KEY=Replace with your API key
+    AZURE_OPENAI_API_VERSION=Replace with your API version
+    ```
 
 1. Open the `src>multi_agent.py` file. This is where you will implement all necessary code for this challenge.
 
