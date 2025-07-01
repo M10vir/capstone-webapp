@@ -7,7 +7,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2021-06-01-preview' = {
   name: acrName
   location: location
   sku: {
-    name: 'Premium' // Choose between Basic, Standard, and Premium based on your needs
+    name: 'Basic' // Choose between Basic, Standard, and Premium based on your needs
   }
   properties: {
     adminUserEnabled: false
