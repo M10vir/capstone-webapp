@@ -111,7 +111,9 @@ async def run_multi_agent(input: str):
         content=input 
     )
 
-    responses = await agent_group.chat(chat_input)
+    async for content in agent_group.chat(chat_input):
+        print(f"# {content.role} - {content.author_name or '*'}: '{content.content}'")
+        responses.append(content)
 
     # Post-processing hook if APPROVED was detected
     for message in reversed(agent_group.chat_history.messages):
