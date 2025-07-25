@@ -1,6 +1,7 @@
 import os
 import re
 import asyncio
+import subprocess
 
 from semantic_kernel.agents import AgentGroupChat, ChatCompletionAgent
 from semantic_kernel.agents.strategies.termination.termination_strategy import TerminationStrategy
@@ -38,8 +39,15 @@ def save_html_to_file(html_code, filename="index.html"):
     """Save extracted HTML to file."""
     with open(filename, "w", encoding="utf-8") as f:
         f.write(html_code)
-    print(f"HTML code saved to {filename}")               
+    print(f"HTML code saved to {filename}") 
 
+def trigger_git_push(script_path="push_to_github.sh"):
+    """Trigger the Git push script via subprocess."""
+    try:
+        subprocess.run(["bash", script_path], check=True)
+        print("Git push triggered via push_to_github.sh")
+    except subprocess.CalledProcessError as e:
+        print(f"Git push failed: {e}")
 
 async def run_multi_agent(input: str):
     """implement the multi-agent system."""
@@ -107,6 +115,7 @@ async def run_multi_agent(input: str):
             html_code = extract_html_from_chat(agent_group.chat_history)
             if html_code:
                 save_html_to_file(html_code)
+                trigger_git_push()
             else:
                 print("No properly formatted HTML code found from SoftwareEngineer.")
             break

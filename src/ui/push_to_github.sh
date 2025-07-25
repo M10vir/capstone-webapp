@@ -1,6 +1,6 @@
 #!/bin/bash
 
-REPO_DIR="C:\LabFiles\Capstone-Project"
+REPO_DIR="/c/LabFiles/Capstone-Project"
 BRANCH="main"
 COMMIT_MSG="Automated push from approval workflow"
 
