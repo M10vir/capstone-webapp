@@ -95,9 +95,15 @@ async def run_multi_agent(input: str):
         termination_strategy = ApprovalTerminationStrategy()
     )
 
+    # Prepare the AgentGroupChat
     agent_group = AgentGroupChat(
         agents=[business_analyst, software_engineer, product_owner],
         execution_settings=execution_settings
+    )
+
+    # Add user message to history
+    agent_group.add_chat_message(
+        ChatMessageContent(role=AuthorRole.USER, content=input)
     )
 
     chat_input = ChatMessageContent(
