@@ -5,17 +5,13 @@ import subprocess
 
 from semantic_kernel.agents import AgentGroupChat, ChatCompletionAgent
 from semantic_kernel.agents.strategies.termination.termination_strategy import TerminationStrategy
-from semantic_kernel.agents.strategies.selection.kernel_function_selection_strategy import (
-    KernelFunctionSelectionStrategy,
-)
-from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
 from semantic_kernel.connectors.ai.open_ai.services.azure_chat_completion import AzureChatCompletion
 from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.contents.utils.author_role import AuthorRole
 from semantic_kernel.kernel import Kernel
-from semantic_kernel.agents.agent_group_chat_execution_settings import AgentGroupChatExecutionSettings
-from samples.demo.document_generator.agents.code_validation_agent import CodeValidationAgent
+from semantic_kernel.agents.group_chat.group_chat_execution_settings import GroupChatExecutionSettings
 
+responses = []
 
 class ApprovalTerminationStrategy(TerminationStrategy):
     """A strategy for determining when an agent should terminate."""
@@ -51,7 +47,12 @@ def trigger_git_push(script_path="push_to_github.sh"):
         print(f"Git push failed: {e}")
 
 async def run_multi_agent(input: str):
-    """implement the multi-agent system."""
+    """
+    Executes a simulated multi-agent flow:
+    Business Analyst -> Software Engineer -> Product Owner,
+    drive by Azure OpenAI chat completion.
+    Trigger deployment sequence on approval.
+    """
 
     # Azure model configuration
     deployment_name = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
@@ -92,7 +93,7 @@ async def run_multi_agent(input: str):
     )
 
     # Setup agent group chat
-    execution_settings = AgentGroupChatExecutionSettings(
+    execution_settings = GroupChatExecutionSettings(
         termination_strategy = ApprovalTerminationStrategy()
     )
 
@@ -120,13 +121,15 @@ async def run_multi_agent(input: str):
     for message in reversed(agent_group.chat_history.messages):
         if message.role == AuthorRole.USER and "APPROVED" in message.content.upper():
             print("Approval detected. Triggering finalization...")
-
-            html_code = extract_html_from_chat(agent_group.chat_history)
-            if html_code:
-                save_html_to_file(html_code)
-                trigger_git_push()
-            else:
-                print("No properly formatted HTML code found from SoftwareEngineer.")
+            try:
+                html_code = extract_html_from_chat(agent_group.chat_history)
+                if html_code:
+                    save_html_to_file(html_code)
+                    trigger_git_push()
+                else:
+                    print("No properly formatted HTML code found from SoftwareEngineer.")
+            except Exception as e:
+                print(f"Finalization error: {e}")
             break
 
     return responses
