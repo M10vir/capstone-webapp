@@ -14,6 +14,7 @@ from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.contents.utils.author_role import AuthorRole
 from semantic_kernel.kernel import Kernel
 from semantic_kernel.agents.agent_group_chat_execution_settings import AgentGroupChatExecutionSettings
+from samples.demo.document_generator.agents.code_validation_agent import CodeValidationAgent
 
 
 class ApprovalTerminationStrategy(TerminationStrategy):
