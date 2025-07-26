@@ -9,7 +9,6 @@ from semantic_kernel.connectors.ai.open_ai.services.azure_chat_completion import
 from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.contents.utils.author_role import AuthorRole
 from semantic_kernel.kernel import Kernel
-from semantic_kernel.agents.group_chat.group_chat_execution_settings import GroupChatExecutionSettings
 
 responses = []
 
@@ -92,15 +91,10 @@ async def run_multi_agent(input: str):
         system_message="""You are the Product Owner which will review the software engineer's code to ensure all user  requirements are completed. You are the guardian of quality, ensuring the final product meets all specifications. IMPORTANT: Verify that the Software Engineer has shared the HTML code using the format ```html [code] ```. This format is required for the code to be saved and pushed to GitHub. Once all client requirements are completed and the code is properly formatted, reply with 'READY FOR USER APPROVAL'. If there are missing features or formatting issues, you will need to send a request back to the SoftwareEngineer or BusinessAnalyst with details of the defect.""".strip()
     )
 
-    # Setup agent group chat
-    execution_settings = GroupChatExecutionSettings(
-        termination_strategy = ApprovalTerminationStrategy()
-    )
-
     # Prepare the AgentGroupChat
     agent_group = AgentGroupChat(
         agents=[business_analyst, software_engineer, product_owner],
-        execution_settings=execution_settings
+        termination_strategy=ApprovalTerminationStrategy()
     )
 
     # Add user message to history
