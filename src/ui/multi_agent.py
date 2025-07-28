@@ -3,6 +3,11 @@ import re
 import asyncio
 import subprocess
 
+from dotenv import load_dotenv
+
+# Load .env from repo root, even if script is in subfolder
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+
 from semantic_kernel.agents import AgentGroupChat, ChatCompletionAgent
 from semantic_kernel.agents.strategies.termination.termination_strategy import TerminationStrategy
 from semantic_kernel.connectors.ai.open_ai.services.azure_chat_completion import AzureChatCompletion
@@ -12,9 +17,27 @@ from semantic_kernel.kernel import Kernel
 
 responses = []
 
+def get_kernel():
+    """Centralized Azure ChatCompletion kernel builder."""
+    deployment_name = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+
+    service = AzureChatCompletion(
+        deployment_name=deployment_name,
+        endpoint=endpoint,
+        api_key=api_key,
+        api_version=api_version,
+    )
+
+    # Create and register Kernel
+    kernel = Kernel()
+    kernel.add_service(service)
+    return kernel
+
 class ApprovalTerminationStrategy(TerminationStrategy):
     """A strategy for determining when an agent should terminate."""
- 
     async def should_agent_terminate(self, agent, history):
         """Check if the agent should terminate, if user's latest message contains 'APPROVED'."""
         for message in reversed(history.messages):
@@ -22,9 +45,9 @@ class ApprovalTerminationStrategy(TerminationStrategy):
                 return True
         return False 
     
-def extract_html_from_chat(history):
+def extract_html_from_chat(messages):
     """Extract HTML code block from SoftwareEngineer messages.""" 
-    for message in reversed(history.messages):
+    for message in reversed(messages):
         if message.role == AuthorRole.ASSISTANT and message.author_name == "SoftwareEngineer":
             match = re.search(r"```html\s*(.*?)```", message.content, re.DOTALL | re.IGNORECASE)
             if match:
@@ -46,77 +69,49 @@ def trigger_git_push(script_path="push_to_github.sh"):
         print(f"Git push failed: {e}")
 
 async def run_multi_agent(input: str):
-    """
-    Executes a simulated multi-agent flow:
-    Business Analyst -> Software Engineer -> Product Owner,
-    drive by Azure OpenAI chat completion.
-    Trigger deployment sequence on approval.
-    """
-
-    # Azure model configuration
-    deployment_name = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT_NAME")
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
-    api_version = os.getenv("AZURE_OPENAI_API_VERSION")
-
-    azure_service = AzureChatCompletion(
-        deployment_name=deployment_name,
-        endpoint=endpoint,
-        api_key=api_key,
-        api_version=api_version,
-    )
-
-    # Create and register Kernel
-    kernel = Kernel()
-    kernel.add_service(azure_service)
+    kernel = get_kernel()
 
     # Agent 1: Business Analyst
     business_analyst = ChatCompletionAgent(
         kernel=kernel,
         name="BusinessAnalyst",
-        system_message="""You are a Business Analyst which will take the requirements from the user (also known as a 'customer') and create a project plan for creating the requested app. The Business Analyst understands the user requirements and creates detailed documents with requirements and costing. The documents should be usable by the SoftwareEngineer as a reference for implementing the required features, and by the Product Owner for reference to determine if the application delivered by the Software Engineer meets all of the user's requirements.""".strip()
+        instructions="""You are a Business Analyst which will take the requirements from the user (also known as a 'customer') and create a project plan for creating the requested app. The Business Analyst understands the user requirements and creates detailed documents with requirements and costing. The documents should be usable by the SoftwareEngineer as a reference for implementing the required features, and by the Product Owner for reference to determine if the application delivered by the Software Engineer meets all of the user's requirements.""".strip()
     )
 
     # Agent 2: Software Engineer
     software_engineer = ChatCompletionAgent(
         kernel=kernel,
         name="SoftwareEngineer",
-        system_message="""You are a Software Engineer, and your goal is create a web app using HTML and JavaScript by taking into consideration all the requirements given by the Business Analyst. The application should implement all the requested features. Deliver the code to the Product Owner for review when completed. You can also ask questions of the BusinessAnalyst to clarify any requirements that are unclear.""".strip()
+        instructions="""You are a Software Engineer, and your goal is create a web app using HTML and JavaScript by taking into consideration all the requirements given by the Business Analyst. The application should implement all the requested features. Deliver the code to the Product Owner for review when completed. You can also ask questions of the BusinessAnalyst to clarify any requirements that are unclear.""".strip()
     )
 
     # Agent 3: Product Owner
     product_owner = ChatCompletionAgent(
         kernel=kernel,
         name="ProductOwner",
-        system_message="""You are the Product Owner which will review the software engineer's code to ensure all user  requirements are completed. You are the guardian of quality, ensuring the final product meets all specifications. IMPORTANT: Verify that the Software Engineer has shared the HTML code using the format ```html [code] ```. This format is required for the code to be saved and pushed to GitHub. Once all client requirements are completed and the code is properly formatted, reply with 'READY FOR USER APPROVAL'. If there are missing features or formatting issues, you will need to send a request back to the SoftwareEngineer or BusinessAnalyst with details of the defect.""".strip()
+        instructions="""You are the Product Owner which will review the software engineer's code to ensure all user  requirements are completed. You are the guardian of quality, ensuring the final product meets all specifications. IMPORTANT: Verify that the Software Engineer has shared the HTML code using the format ```html [code] ```. This format is required for the code to be saved and pushed to GitHub. Once all client requirements are completed and the code is properly formatted, reply with 'READY FOR USER APPROVAL'. If there are missing features or formatting issues, you will need to send a request back to the SoftwareEngineer or BusinessAnalyst with details of the defect.""".strip()
     )
 
     # Prepare the AgentGroupChat
     agent_group = AgentGroupChat(
-        agents=[business_analyst, software_engineer, product_owner],
-        termination_strategy=ApprovalTerminationStrategy()
+        agents=[business_analyst, software_engineer, product_owner]
     )
 
     # Add user message to history
-    agent_group.add_chat_message(
+    await agent_group.add_chat_message(
         ChatMessageContent(role=AuthorRole.USER, content=input)
     )
 
-    chat_input = ChatMessageContent(
-        role=AuthorRole.USER,
-        content=input 
-    )
-
-    async for content in agent_group.chat(chat_input):
-        print(f"# {content.role} - {content.author_name or '*'}: '{content.content}'")
+    async for content in agent_group.invoke():
+        print(f"# {content.role}: '{content.content}'")
         responses.append(content)
 
     # Post-processing hook if APPROVED was detected
-    for message in reversed(agent_group.chat_history.messages):
+    for message in reversed(responses):
         if message.role == AuthorRole.USER and "APPROVED" in message.content.upper():
             print("Approval detected. Triggering finalization...")
             try:
-                html_code = extract_html_from_chat(agent_group.chat_history)
+                html_code = extract_html_from_chat(responses)
                 if html_code:
                     save_html_to_file(html_code)
                     trigger_git_push()
@@ -127,3 +122,13 @@ async def run_multi_agent(input: str):
             break
 
     return responses
+
+if __name__ == "__main__":
+    import sys
+    import asyncio
+
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+    test_input = "Create a web calculator that support basic operation (+, -, *, /) with a terminal-based UI."
+    asyncio.run(run_multi_agent(test_input))
